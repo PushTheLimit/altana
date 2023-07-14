@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graph-api-deployment
+  namespace: apps
+  labels:
+    app: graph-api-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: graph-api-app
+  template:
+    metadata:
+      labels:
+        app: graph-api-app
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                - amd64
+                - arm64
+      containers:
+      - name: nginx
+        image: public.ecr.aws/nginx/nginx:1.23
+        ports:
+        - name: http
+          containerPort: 80
+        imagePullPolicy: IfNotPresent
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graph-api-service
+  namespace: apps
+  labels:
+    app: graph-api-app
+spec:
+  selector:
+    app: graph-api-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: graph-api-ingress
+spec:
+  rules:
+  - host: "graph.altana.ai"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: graph-api-app
+            port:
+              number: 80
